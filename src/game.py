@@ -1,211 +1,180 @@
-import pygame, time, random, pickle, sys
+import pygame
+import time
+from random import randrange
+import pickle
+import sys
 
 
 class racing_fire:
+    MUSIC_FILE = "music/racing_fire.mp3"
+    SETTING_FILES = {
+        "music": "data/music.dat",
+        "terrain": "data/world.dat",
+        "highscore": "data/highscore.dat",
+        "car": "data/car.dat",
+    }
+    TEXTURE_PATHS = {
+        "terrain": [
+            "textures/scenery/road/grass_background.png",
+            "textures/scenery/ice/snow_background.png",
+            "textures/scenery/jungle/heavy_grass_background.png",
+        ],
+        "road": [
+            "textures/scenery/road/road_background.png",
+            "textures/scenery/ice/ice_road_background.png",
+            "textures/scenery/jungle/dirt_road_background.png",
+        ],
+        "obstacle": [
+            "textures/scenery/road/pothole.png",
+            "textures/scenery/ice/snow_pile.png",
+            "textures/scenery/jungle/rocks.png",
+        ],
+        "menu": {
+            "start": "textures/main_menu/start_selected.png",
+            "exit": "textures/main_menu/exit_selected.png",
+            "options": "textures/main_menu/settings_selected.png",
+            "bkg": "textures/main_menu/menu_background.png",
+        },
+        "death": {
+            "back": "textures/exit_menu/back_selected.png",
+            "bkg": "textures/exit_menu/exit_background.png",
+        },
+        "settings": {
+            "music": {
+                "hover": [
+                    "textures/settings_menu/off_hover.png",
+                    "textures/settings_menu/on_hover.png",
+                ],
+                "selected": [
+                    "textures/settings_menu/off_selected.png",
+                    "textures/settings_menu/on_selected.png",
+                ],
+            },
+            "terrain": {
+                "hover": "textures/settings_menu/hover_background.png",
+                "more": "textures/settings_menu/more_background_hover.png",
+                "selected": "textures/settings_menu/selected_background.png",
+            },
+            "car": {
+                "hover": "textures/settings_menu/hover_car.png",
+                "more": "textures/settings_menu/more_cars_hover.png",
+                "selected": "textures/settings_menu/select_car.png",
+            },
+            "exit": "textures/settings_menu/back_selected.png",
+            "bkg": "textures/settings_menu/settings_background.png",
+        },
+        "car": [
+            "textures/cars/firebird.png",
+            "textures/cars/car-1.png",
+            "textures/cars/car-2.png",
+            "textures/cars/car-4.png",
+            "textures/cars/car-5.png",
+            "textures/cars/car-7.png",
+        ],
+        "intro": "textures/intro/intro.png",
+    }
+
     def __init__(self, x=350, y=600):
         pygame.init()
 
         # display
         pygame.display.set_caption("Racing Fire")
         self.screen = pygame.display.set_mode((x, y))
-        self.display_width, self.display_height = x, y
-        self.x, self.y = self.display_width * 0.45, self.display_height * 0.8
+        self.display_width = x
+        self.display_height = y
+        self.x = self.display_width * 0.45
+        self.y = self.display_height * 0.8
 
         # in game loop variables
-        self.running, self.menu, self.game, self.end, self.options = (
-            True,
-            True,
-            False,
-            False,
-            False,
-        )
-
-        # music
-        try:
-            self.soundtrack = pygame.mixer.music.load("music/racing_fire.mp3")
-        except:
-            self.soundtrack = pygame.mixer.music.load("music/racing_fire.ogg")
-
-        try:
-            with open("data/music.dat", "rb") as file:
-                self.music = pickle.load(file)
-        except:
-            self.music = 0
-            with open("data/music.dat", "wb") as file:
-                pickle.dump(self.music, file)
+        self.running = True
+        self.menu = True
+        self.game = False
+        self.end = False
+        self.options = False
 
         # game variables
-        self.x_change, self.speed, self.distance, self.y_val = 0, 1, 0, 0
+        self.x_change = 0
+        self.speed = 1
+        self.distance = 0
+        self.y_val = 0
 
         # font type
         self.font = pygame.font.Font(pygame.font.get_default_font(), 36)
 
-        # grass terrain
-        self.grass_terrain = pygame.image.load(
-            "textures/scenery/road/grass_background.png"
-        ).convert_alpha()
-        self.drive = pygame.image.load(
-            "textures/scenery/road/road_background.png"
-        ).convert_alpha()
-        self.pothole = pygame.image.load(
-            "textures/scenery/road/pothole.png"
-        ).convert_alpha()
+        # Setup Music
+        self.soundtrack = pygame.mixer.music.load(MUSIC_FILE)
 
-        # ice terrain
-        self.snow_terrain = pygame.image.load(
-            "textures/scenery/ice/snow_background.png"
-        ).convert_alpha()
-        self.ice_road = pygame.image.load(
-            "textures/scenery/ice/ice_road_background.png"
-        ).convert_alpha()
-        self.snow_pile = pygame.image.load(
-            "textures/scenery/ice/snow_pile.png"
-        ).convert_alpha()
+        self.music = load_data_file(SETTING_FILES["music"])
 
-        # jungle terrain
-        self.jungle_terrain = pygame.image.load(
-            "textures/scenery/jungle/heavy_grass_background.png"
-        ).convert_alpha()
-        self.dirt_road = pygame.image.load(
-            "textures/scenery/jungle/dirt_road_background.png"
-        ).convert_alpha()
-        self.rocks = pygame.image.load(
-            "textures/scenery/jungle/rocks.png"
-        ).convert_alpha()
+        # Setup textures
+        self.textures = {
+            "terrain": [load_png(TEXTURE_PATHS["terrain"][n]) for n in range(3)],
+            "road": [load_png(TEXTURE_PATHS["road"][n]) for n in range(3)],
+            "obstacle": [load_png(TEXTURE_PATHS["obstacle"][n]) for n in range(3)],
+            "menu": {
+                "start": load_png(TEXTURE_PATHS["menu"]["start"]),
+                "exit": load_png(TEXTURE_PATHS["menu"]["exit"]),
+                "options": load_png(TEXTURE_PATHS["menu"]["options"]),
+                "bkg": load_png(TEXTURE_PATHS["menu"]["bkg"]),
+            },
+            "highscore": render_highscore(0),
+            "death": {
+                "back": load_png(TEXTURE_PATHS["death"]["back"]),
+                "bkg": load_png(TEXTURE_PATHS["death"]["exit"]),
+            },
+            "settings": {
+                "music": {
+                    "hover": [
+                        load_png(TEXTURE_PATHS["settings"]["music"]["hover"][n])
+                        for n in range(2)
+                    ],
+                    "selected": [
+                        load_png(TEXTURE_PATHS["settings"]["music"]["hover"][n])
+                        for n in range(2)
+                    ],
+                },
+                "terrain": {
+                    "hover": load_png(TEXTURE_PATHS["settings"]["terrain"]["hover"]),
+                    "more": load_png(TEXTURE_PATHS["settings"]["terrain"]["more"]),
+                    "selected": load_png(
+                        TEXTURE_PATHS["settings"]["terrain"]["selected"]
+                    ),
+                },
+                "car": {
+                    "hover": load_png(TEXTURE_PATHS["settings"]["car"]["hover"]),
+                    "more": load_png(TEXTURE_PATHS["settings"]["car"]["more"]),
+                    "selected": load_png(TEXTURE_PATHS["settings"]["car"]["selected"]),
+                },
+                "exit": load_png(TEXTURE_PATHS["settings"]["exit"]),
+                "bkg": load_png(TEXTURE_PATHS["settings"]["bkg"]),
+            },
+            "car": [load_png(TEXTURE_PATHS["car"][n]) for n in range(6)],
+            "intro": load_png(TEXTURE_PATHS["intro"]),
+        }
 
-        # defualt world
-        try:
-            with open("data/world.dat", "rb") as file:
-                self.world = pickle.load(file)
-        except:
-            self.world = 0
-            with open("data/world.dat", "wb") as file:
-                pickle.dump(self.world, file)
+        # Load defaults
+        self.world = load_data_file(SETTING_FILES["terrain"])
 
-        if self.world == 0:
-            self.terrain = self.grass_terrain
-            self.road = self.drive
-            self.obstacle = self.pothole
-        elif self.world == 1:
-            self.terrain = self.snow_terrain
-            self.road = self.ice_road
-            self.obstacle = self.snow_pile
-        elif self.world == 2:
-            self.terrain = self.jungle_terrain
-            self.road = self.dirt_road
-            self.obstacle = self.rocks
+        if self.world >= 0 and self.world <= 2:
+            self.current_terrain = self.textures["terrain"][self.world]
+            self.current_road = self.textures["road"][self.world]
+            self.current_obstacle = self.textures["obstacle"][self.world]
         else:
             print("Your world.dat file has invalid data.")
             pygame.quit()
-            sys.exit()
 
-        # highscore
-        try:
-            with open("data/highscore.dat", "rb") as file:
-                self.highscore = pickle.load(file)
-        except:
-            self.highscore = 0
-            with open("data/highscore.dat", "wb") as file:
-                pickle.dump(self.highscore, file)
+        self.highscore = load_data_file(SETTING_FILES["highscore"])
+        self.textures["highscore"] = render_highscore(self.highscore)
 
-        self.highscore_string = str(self.highscore)
-        self.high_score_render = self.font.render(
-            self.highscore_string, True, (255, 255, 255)
-        )
+        self.selected_car = load_data_file(SETTING_FILES["car"])
 
-        # main menu
-        self.start_clicked = pygame.image.load(
-            "textures/main_menu/start_selected.png"
-        ).convert_alpha()
-        self.exit_clicked = pygame.image.load(
-            "textures/main_menu/exit_selected.png"
-        ).convert_alpha()
-        self.options_clicked = pygame.image.load(
-            "textures/main_menu/settings_selected.png"
-        ).convert_alpha()
-        self.menu_background = pygame.image.load(
-            "textures/main_menu/menu_background.png"
-        ).convert_alpha()
-
-        # death screen
-        self.menu_clicked = pygame.image.load(
-            "textures/exit_menu/back_selected.png"
-        ).convert_alpha()
-        self.death_screen = pygame.image.load(
-            "textures/exit_menu/exit_background.png"
-        ).convert_alpha()
-
-        # settings menu
-        self.music_off = pygame.image.load(
-            "textures/settings_menu/off_hover.png"
-        ).convert_alpha()
-        self.music_on = pygame.image.load(
-            "textures/settings_menu/on_hover.png"
-        ).convert_alpha()
-        self.off_selected = pygame.image.load(
-            "textures/settings_menu/off_selected.png"
-        ).convert_alpha()
-        self.on_selected = pygame.image.load(
-            "textures/settings_menu/on_selected.png"
-        ).convert_alpha()
-        self.options_exit = pygame.image.load(
-            "textures/settings_menu/back_selected.png"
-        ).convert_alpha()
-        self.background_hover = pygame.image.load(
-            "textures/settings_menu/hover_background.png"
-        ).convert_alpha()
-        self.selected_background = pygame.image.load(
-            "textures/settings_menu/selected_background.png"
-        ).convert_alpha()
-        self.selected_car = pygame.image.load(
-            "textures/settings_menu/select_car.png"
-        ).convert_alpha()
-        self.hover_car = pygame.image.load(
-            "textures/settings_menu/hover_car.png"
-        ).convert_alpha()
-        self.options_screen = pygame.image.load(
-            "textures/settings_menu/settings_background.png"
-        ).convert_alpha()
-        self.more_car_hover = pygame.image.load(
-            "textures/settings_menu/more_cars_hover.png"
-        ).convert_alpha()
-        self.more_background_hover = pygame.image.load(
-            "textures/settings_menu/more_background_hover.png"
-        ).convert_alpha()
+        if self.selected_car >= 0 and self.selected_car <= 5:
+            self.car = self.selected_car
+        else:
+            print("Your car.data file has invalid data.")
+            pygame.quit()
 
         # car
-        self.firebird = pygame.image.load("textures/cars/firebird.png").convert_alpha()
-        self.car1 = pygame.image.load("textures/cars/car-1.png").convert_alpha()
-        self.car2 = pygame.image.load("textures/cars/car-2.png").convert_alpha()
-        self.car4 = pygame.image.load("textures/cars/car-4.png").convert_alpha()
-        self.car5 = pygame.image.load("textures/cars/car-5.png").convert_alpha()
-        self.car7 = pygame.image.load("textures/cars/car-7.png").convert_alpha()
-
-        try:
-            with open("data/car.dat", "rb") as file:
-                self.car_choice = pickle.load(file)
-        except:
-            self.car_choice = 0
-            with open("data/car.dat", "wb") as file:
-                pickle.dump(self.car_choice, file)
-
-        if self.car_choice == 0:
-            self.car = self.firebird
-        elif self.car_choice == 1:
-            self.car = self.car4
-        elif self.car_choice == 2:
-            self.car = self.car7
-        elif self.car_choice == 3:
-            self.car = self.car5
-        elif self.car_choice == 4:
-            self.car = self.car2
-        elif self.car_choice == 5:
-            self.car = self.car1
-        else:
-            print("Your car.dat file has invalid data.")
-            pygame.quit()
-            sys.exit()
-
         self.car_hitbox = (
             self.x,
             self.y,
@@ -214,114 +183,120 @@ class racing_fire:
         )
 
         # obstacle
-        self.obstacle_side, self.obstacle_angle = random.randrange(
-            30, 100
-        ), random.randrange(0, 360)
-        self.obstacle_startx, self.obstacle_starty = (
-            random.randrange(25, (self.display_width - 25 - self.obstacle_side)),
-            -10,
-        )
-        self.obstacle_hitbox = (
-            (self.obstacle_side / 2),
-            self.obstacle_startx,
-            self.obstacle_starty,
-        )
+        self.obstacle_info = {
+            "x": randrange(25, (self.display_width - 25 - self.obstacle_side)),
+            "y": -10,
+            "size": randrange(30, 100) / 2,
+            "angle": randrange(0, 360),
+        }
 
-        self.intro = pygame.image.load("textures/intro/intro.png").convert_alpha()
-
-        self.screen.blit(self.intro, (0, 0))
+        self.screen.blit(self.textures["intro"], (0, 0))
         pygame.display.update()
-        pygame.time.wait(5000)
+        pygame.time.wait(3000)
+
+    def load_png(image):
+        return pygame.image.load(image).convert_alpha()
+
+    def load_data_file(filename):
+        setting = 0
+        try:
+            with open(filename, "rb") as file:
+                setting = pickle.load(file)
+        except:
+            with open(filename, "wb") as file:
+                pickle.dump(setting, file)
+
+        return setting
+
+    def render_highscore(highscore):
+        return self.font.render(str(highscore), True, (255, 255, 255))
 
     def main_menu_setup(self):
         self.screen.blits(
             blit_sequence=(
-                (self.menu_background, (0, 0)),
-                (self.high_score_render, (218, 569)),
+                (self.textures["menu"]["bkg"], (0, 0)),
+                (self.textures["highscore"], (218, 569)),
             )
         )
         pygame.display.update()
 
     def initial_load(self):
-        self.screen.blits(blit_sequence=((self.terrain, (0, 0)), (self.road, (25, 0))))
+        self.screen.blits(
+            blit_sequence=((self.current_terrain, (0, 0)), (self.current_road, (25, 0)))
+        )
 
     def move_car(self, x, y):
-        self.screen.blit(self.car, (int(x), int(y)))
+        self.screen.blit(self.textures["car"][self.car], (x, y))
 
     def events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
-                sys.exit()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_LEFT:
                     self.x_change = -0.3
                 elif event.key == pygame.K_RIGHT:
                     self.x_change = 0.3
-                else:
-                    pass
             elif event.type == pygame.KEYUP:
                 if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
                     self.x_change = 0
-                else:
-                    pass
-            else:
-                pass
 
     def car_onscreen(self):
         if 0 < self.x + self.x_change < 300:
             self.x += self.x_change
-        else:
-            pass
 
     def scrolling_road(self):
-        y = self.y_val % self.road.get_rect().height
+        y = self.y_val % self.current_road.get_rect().height
         self.screen.blits(
             blit_sequence=(
-                (self.terrain, (0, int(y - self.terrain.get_rect().height))),
-                (self.road, (25, int(y - self.road.get_rect().height))),
+                (
+                    self.current_terrain,
+                    (0, int(y - self.current_terrain.get_rect().height)),
+                ),
+                (self.current_road, (25, int(y - self.current_road.get_rect().height))),
             )
         )
+
         if y < 814:
             self.screen.blits(
-                blit_sequence=((self.terrain, (0, int(y))), (self.road, (25, int(y))))
+                blit_sequence=(
+                    (self.current_terrain, (0, int(y))),
+                    (self.current_road, (25, int(y))),
+                )
             )
-        else:
-            pass
+
         self.y_val += self.speed
 
     def obstacles(self):
         self.resized_obstacle = pygame.transform.scale(
-            self.obstacle, (self.obstacle_side, self.obstacle_side)
+            self.current_obstacle,
+            (self.obstacle_info["size"], self.obstacle_info["size"]),
         )
         self.rotated_obstacle = pygame.transform.rotate(
-            self.resized_obstacle, self.obstacle_angle
+            self.resized_obstacle, self.obstacle_info["angle"]
         )
         self.screen.blit(
             self.resized_obstacle,
-            (int(self.obstacle_startx), int(self.obstacle_starty)),
+            (self.obstacle_info["x"], self.obstacle_info["y"]),
         )
-        self.obstacle_starty += self.speed
+        self.obstacle_info["y"] += self.speed
 
     def obstacle_onscreen(self):
-        if self.obstacle_starty > self.display_height:
-            self.obstacle_starty = 0 - self.obstacle_side
-            self.obstacle_side, self.obstacle_angle = random.randrange(
-                50, 70
-            ), random.randrange(0, 360)
-            self.obstacle_startx = random.randrange(
+        if self.obstacle_info["y"] > self.display_height:
+            self.obstacle_info["y"] = 0 - self.obstacle_info["size"]
+            self.obstacle_info["size"] = randrange(50, 70)
+            self.obstacle_info["angle"] = randrange(0, 360)
+            self.obstacle_info["x"] = randrange(
                 25, (self.display_width - 25 - self.obstacle_side)
             )
-        else:
-            pass
 
     def crash(self):
         self.game, self.end = False, True
-        self.screen.blit(self.death_screen, (0, 0))
+        self.screen.blit(self.textures["death"]["bkg"], (0, 0))
 
         if int(self.distance) >= self.highscore:
             self.highscore = int(self.distance)
-            with open("data/highscore.dat", "wb") as file:
+            with open(SETTING_FILES["highscore"], "wb") as file:
                 pickle.dump(self.highscore, file)
         else:
             pass
@@ -539,10 +514,6 @@ class racing_fire:
                 elif 542 <= pygame.mouse.get_pos()[1] <= 590:
                     if 82 <= pygame.mouse.get_pos()[0] <= 259:  # exit
                         self.screen.blit(self.options_exit, (83, 540))
-                        pygame.display.update()
-                    else:
-                        pass
-
                 elif 392 <= pygame.mouse.get_pos()[1] <= 414:
                     if 11 <= pygame.mouse.get_pos()[0] <= 229:
                         self.screen.blit(self.more_car_hover, (11, 392))
@@ -736,8 +707,3 @@ class racing_fire:
         pygame.mixer.music.unload()
         pygame.quit()
         sys.exit()
-
-
-if __name__ == "__main__":
-    game = racing_fire()
-    game.mainloop()
